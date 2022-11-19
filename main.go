@@ -81,7 +81,7 @@ func appendToFile(filename string, yourString string) bool {
 func sortLines(inputFilename string, outputFilename string, revers bool, sortByColumnNumber int, ignoreHeader bool) bool {
 	var sorted sort.StringSlice
 	var tempString string
-	var i int
+	//var i int
 
 	if ifExistFile(outputFilename) {
 		// Відкриття файлу
@@ -92,34 +92,7 @@ func sortLines(inputFilename string, outputFilename string, revers bool, sortByC
 		}
 		closeFile(file)
 
-		fileIn, err := os.Open(inputFilename)
-		if err != nil {
-			log.Fatalf("Не вдалося відкрити файл %s: %s", outputFilename, err)
-			return false
-		}
-		//Читання кожної строки файлу та формуємо їх в одну строку
-		reader := bufio.NewReader(fileIn)
-		i = 0
-		for {
-			line, _, err := reader.ReadLine()
-
-			// Якщо строки завершилися, перериваємо цикл читання
-			if err == io.EOF {
-				break
-			}
-
-			//Якщо потрібно ігнорувати першу строку, ігноруємо її
-			if ignoreHeader {
-				if i != 0 {
-					tempString = tempString + string(line) + "\n"
-				}
-			} else {
-				tempString = tempString + string(line) + "\n"
-			}
-			i++
-		}
-		//Закриття файлу
-		closeFile(fileIn)
+		tempString = oF(inputFilename, ignoreHeader)
 
 		sorted = strings.Split(tempString, "\n") // конвертуємо строку в Slice з роздільником \n
 
@@ -130,37 +103,7 @@ func sortLines(inputFilename string, outputFilename string, revers bool, sortByC
 		} else {
 			sorted.Sort()
 		}
-
-		//Відкриваємо файл, в який необхідно додати строки
-		file, err = os.OpenFile(outputFilename, os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			log.Fatalf("Виникла помилка під час створення файлу: %s", err)
-		}
-		//Очищуємо файл від попереднього змісту
-		if err := os.Truncate(outputFilename, 0); err != nil {
-			log.Printf("Failed to truncate: %v", err)
-		}
-		//Додаємо Хедер, якщо задано флаг -h
-		if ignoreHeader {
-			addHeader(file)
-		}
-
-		//Записуємо кожну строку в файл
-		datawriter := bufio.NewWriter(file)
-		for _, data := range sorted {
-			if len(data) != 0 {
-				fmt.Println("Resulte:", data)
-				_, _ = datawriter.WriteString(data + "\n")
-			}
-		}
-		//Посилаємо текст з буферу в файл
-		err = datawriter.Flush()
-		if err != nil {
-			log.Fatalf("Виникла помилка під час запису відсортованих даних в файл. %s", err)
-			return false
-		}
-
-		closeFile(file)
+		pushStringsToFile(sorted, outputFilename, ignoreHeader)
 		return true
 	} else {
 		return false
@@ -174,13 +117,13 @@ func sortLines(inputFilename string, outputFilename string, revers bool, sortByC
 func iterate(path string) []string {
 	var files []string
 
+	//Проходимося по кожній папці та зчитуємо файли .csv
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
 		if !info.IsDir() && filepath.Ext(path) == ".csv" {
 			files = append(files, path)
-			//fmt.Printf("File Name: %s\n", info.Name())
 		}
 		return nil
 	})
@@ -190,76 +133,28 @@ func iterate(path string) []string {
 	return files
 }
 
-func sortLinesFromManyFiles(files []string, outputFileName string, revers bool, sortByColumnNumber int, ignoreHeader bool) bool {
+/*
+Занести строки в файл
+*/
+func pushStringsToFile(sorted sort.StringSlice, outputFilename string, ignoreHeader bool) bool {
 
-	var sorted sort.StringSlice
-	var tempString string
-
-	for j := 0; j < len(files); j++ {
-		fileIn, err := os.Open(files[j])
-		if err != nil {
-			log.Fatalf("Не вдалося відкрити файл %s: %s", files[j], err)
-			return false
-		}
-		//Читання кожної строки файлу та формуємо їх в одну строку
-		reader := bufio.NewReader(fileIn)
-		i := 0
-
-		for {
-			line, _, err := reader.ReadLine()
-
-			// Якщо строки завершилися, перериваємо цикл читання
-			if err == io.EOF {
-				break
-			}
-
-			//Якщо потрібно ігнорувати першу строку, ігноруємо її
-			if ignoreHeader {
-				//if revers {
-				//
-				//} else {
-				if i != 0 {
-					tempString = tempString + string(line) + "\n"
-					//}
-				}
-
-			} else {
-				tempString = tempString + string(line) + "\n"
-			}
-			i++
-		}
-		//Закриття файлу
-		closeFile(fileIn)
-
-	}
-	sorted = strings.Split(tempString, "\n") // конвертуємо строку в Slice з роздільником \n
-
-	if revers {
-		//Якщо необхідно сортувати в зворотньому порядку, сортуємо в зворотньому порядку
-		sorted.Sort()
-		sort.Sort(sort.Reverse(sorted))
-	} else {
-		sorted.Sort()
-	}
 	//Відкриваємо файл, в який необхідно додати строки
-	file, err := os.OpenFile(outputFileName, os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(outputFilename, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatalf("Виникла помилка під час створення файлу: %s", err)
 	}
 	//Очищуємо файл від попереднього змісту
-	if err := os.Truncate(outputFileName, 0); err != nil {
+	if err := os.Truncate(outputFilename, 0); err != nil {
 		log.Printf("Failed to truncate: %v", err)
 	}
 	//Додаємо Хедер, якщо задано флаг -h
 	if ignoreHeader {
 		addHeader(file)
 	}
-
 	//Записуємо кожну строку в файл
 	datawriter := bufio.NewWriter(file)
 	for _, data := range sorted {
 		if len(data) != 0 {
-			fmt.Println("Resulte:", data)
 			_, _ = datawriter.WriteString(data + "\n")
 		}
 	}
@@ -272,7 +167,74 @@ func sortLinesFromManyFiles(files []string, outputFileName string, revers bool, 
 
 	closeFile(file)
 	return true
+}
+
+/*
+OpenFile функція. Читання строк
+*/
+func oF(filename string, ignoreHeader bool) string {
+
+	var tempString string
+	fileIn, err := os.Open(filename)
+	if err != nil {
+		log.Fatalf("Не вдалося відкрити файл %s: %s", filename, err)
+		return ""
+	}
+	//Читання кожної строки файлу та формуємо їх в одну строку
+	reader := bufio.NewReader(fileIn)
+	i := 0
+
+	for {
+		line, _, erro := reader.ReadLine()
+
+		// Якщо строки завершилися, перериваємо цикл читання
+		if erro == io.EOF {
+			break
+		}
+
+		//Якщо потрібно ігнорувати першу строку, ігноруємо її
+		if ignoreHeader {
+			if i != 0 {
+				tempString += string(line) + "\n"
+			}
+		} else {
+			tempString += string(line) + "\n"
+		}
+		i++
+	}
+	//Закриття файлу
+	closeFile(fileIn)
+	return tempString
+}
+
+func sortLinesFromManyFiles(files []string, outputFileName string, revers bool, sortByColumnNumber int, ignoreHeader bool) bool {
+
+	var sorted sort.StringSlice
+	var tempString string
+
+	readString := make(chan string) //відкриття каналу для занесення строк
+
+	for j := 0; j < len(files); j++ {
+		// Створення goroutineS
+		go func(pathOfFile string) {
+			readString <- oF(pathOfFile, ignoreHeader) //відправка даних в канал
+		}(files[j])
+
+		tempString += <-readString //читання даних з каналу
+	}
+
+	sorted = strings.Split(tempString, "\n") // конвертуємо строку в Slice з роздільником \n
+
+	if revers {
+		//Якщо необхідно сортувати в зворотньому порядку, сортуємо в зворотньому порядку
+		sorted.Sort()
+		sort.Sort(sort.Reverse(sorted))
+	} else {
+		sorted.Sort()
+	}
+	pushStringsToFile(sorted, outputFileName, ignoreHeader)
 	return true
+
 }
 
 /*
@@ -280,23 +242,25 @@ func sortLinesFromManyFiles(files []string, outputFileName string, revers bool, 
 */
 func startProgram(inputFile string, outputFile string, f int, h bool, r bool, dirName string) bool {
 	for { //нескінченний цикл
-
 		var nameSt, groupSt, typeSt string //змінні з ім'ям, групою, видом навчання (контракт/бюджет)
 		var value int                      //для вибору щодо додавання нової строки
 		var fileExist, appendedString bool //існує файл filename (true false)
 		var listOfFiles []string
 
 		if dirName != "/" {
-			//Якщо задано ім'я папки
+			//Якщо задано ім'я папки, зчитуємо шлях поточної директорії
 			currentDirectory, err := os.Getwd()
 			if err != nil {
 				log.Fatal(err)
 			}
-			listOfFiles = iterate(currentDirectory + "/" + dirName)
 
+			// Зчитуємо список файлів .csv
+			listOfFiles = iterate(currentDirectory + "/" + dirName)
+			// Сортуємо строки
 			sortLinesFromManyFiles(listOfFiles, outputFile, r, 0, h)
 			return true
 		} else {
+			// Якщо не задано ключ -d
 			fmt.Println("Введіть строку в форматі \"Прізвище Група Вид_навчання(К чи Б)\":")
 			_, err := fmt.Scanln(&nameSt, &groupSt, &typeSt) //Введення строки
 			if err != nil {
@@ -339,6 +303,7 @@ func main() {
 	var inputFile, outputFile, dirName string
 	var number int
 	var h, r bool
+
 	flag.Bool("help", false, "Отримати довідку")
 	flag.BoolVar(&h, "h", false, "Ігнорувати першу строку під час сортування даних")
 	flag.StringVar(&inputFile, "i", "test.csv", "Використовувати файл file-name як вхідний файл")
